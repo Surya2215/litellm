@@ -2801,11 +2801,30 @@ class ModelResponseIterator:
     def chunk_parser(self, chunk: dict) -> Optional["ModelResponseStream"]:
         try:
             verbose_logger.debug(f"RAW GEMINI CHUNK: {chunk}")
-            from litellm.types.utils import ModelResponseStream
+            from litellm.types.utils import ModelResponseStream, StreamingChoices, Delta
 
             processed_chunk = GenerateContentResponseBody(**chunk)  # type: ignore
             response_id = processed_chunk.get("responseId")
             model_response = ModelResponseStream(choices=[], id=response_id)
+
+            # Check if prompt is blocked due to content filtering
+            prompt_feedback = processed_chunk.get("promptFeedback")
+            if prompt_feedback and "blockReason" in prompt_feedback:
+                verbose_logger.debug(
+                    f"Prompt blocked due to: {prompt_feedback.get('blockReason')} - {prompt_feedback.get('blockReasonMessage')}"
+                )
+
+                # Create a content_filter response (consistent with non-streaming _handle_blocked_response)
+                choice = StreamingChoices(
+                    finish_reason="content_filter",
+                    index=0,
+                    delta=Delta(content=None, role="assistant"),
+                    logprobs=None,
+                    enhancements=None,
+                )
+
+                model_response.choices = [choice]
+
             usage: Optional[Usage] = None
             _candidates: Optional[List[Candidates]] = processed_chunk.get("candidates")
             grounding_metadata: List[dict] = []
