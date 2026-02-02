@@ -36,16 +36,16 @@ from litellm.types.guardrails import GuardrailEventHooks
 from litellm.types.utils import CallTypes, CallTypesLiteral
 
 try:
-    from litellm_enterprise.enterprise_callbacks.send_emails.base_email import (
+    from litellm_enterprise.enterprise_callbacks.send_emails.base_email import (  # type: ignore[import-untyped]
         BaseEmailLogger,
     )
-    from litellm_enterprise.enterprise_callbacks.send_emails.resend_email import (
+    from litellm_enterprise.enterprise_callbacks.send_emails.resend_email import (  # type: ignore[import-untyped]
         ResendEmailLogger,
     )
-    from litellm_enterprise.enterprise_callbacks.send_emails.sendgrid_email import (
+    from litellm_enterprise.enterprise_callbacks.send_emails.sendgrid_email import (  # type: ignore[import-untyped]
         SendGridEmailLogger,
     )
-    from litellm_enterprise.enterprise_callbacks.send_emails.smtp_email import (
+    from litellm_enterprise.enterprise_callbacks.send_emails.smtp_email import (  # type: ignore[import-untyped]
         SMTPEmailLogger,
     )
 except ImportError:
