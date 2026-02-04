@@ -36,16 +36,16 @@ from litellm.types.guardrails import GuardrailEventHooks
 from litellm.types.utils import CallTypes, CallTypesLiteral
 
 try:
-    from litellm_enterprise.enterprise_callbacks.send_emails.base_email import (
+    from litellm_enterprise.enterprise_callbacks.send_emails.base_email import (  # type: ignore[import-untyped]
         BaseEmailLogger,
     )
-    from litellm_enterprise.enterprise_callbacks.send_emails.resend_email import (
+    from litellm_enterprise.enterprise_callbacks.send_emails.resend_email import (  # type: ignore[import-untyped]
         ResendEmailLogger,
     )
-    from litellm_enterprise.enterprise_callbacks.send_emails.sendgrid_email import (
+    from litellm_enterprise.enterprise_callbacks.send_emails.sendgrid_email import (  # type: ignore[import-untyped]
         SendGridEmailLogger,
     )
-    from litellm_enterprise.enterprise_callbacks.send_emails.smtp_email import (
+    from litellm_enterprise.enterprise_callbacks.send_emails.smtp_email import (  # type: ignore[import-untyped]
         SMTPEmailLogger,
     )
 except ImportError:
@@ -2150,8 +2150,7 @@ class PrismaClient:
             required_view = "LiteLLM_VerificationTokenView"
             expected_views_str = ", ".join(f"'{view}'" for view in expected_views)
             pg_schema = os.getenv("DATABASE_SCHEMA", "public")
-            ret = await self.db.query_raw(
-                f"""
+            ret = await self.db.query_raw(f"""
                 WITH existing_views AS (
                     SELECT viewname
                     FROM pg_views
@@ -2163,8 +2162,7 @@ class PrismaClient:
                     (SELECT COUNT(*) FROM existing_views) AS view_count,
                     ARRAY_AGG(viewname) AS view_names
                 FROM existing_views
-                """
-            )
+                """)
             expected_total_views = len(expected_views)
             if ret[0]["view_count"] == expected_total_views:
                 verbose_proxy_logger.info("All necessary views exist!")
@@ -2173,8 +2171,7 @@ class PrismaClient:
                 ## check if required view exists ##
                 if ret[0]["view_names"] and required_view not in ret[0]["view_names"]:
                     await self.health_check()  # make sure we can connect to db
-                    await self.db.execute_raw(
-                        """
+                    await self.db.execute_raw("""
                             CREATE VIEW "LiteLLM_VerificationTokenView" AS
                             SELECT
                             v.*,
@@ -2184,8 +2181,7 @@ class PrismaClient:
                             t.rpm_limit AS team_rpm_limit
                             FROM "LiteLLM_VerificationToken" v
                             LEFT JOIN "LiteLLM_TeamTable" t ON v.team_id = t.team_id;
-                        """
-                    )
+                        """)
 
                     verbose_proxy_logger.info(
                         "LiteLLM_VerificationTokenView Created in DB!"
@@ -2410,7 +2406,7 @@ class PrismaClient:
                     and reset_at is not None
                 ):
                     response = await self.db.litellm_verificationtoken.find_many(
-                        where={  # type:ignore
+                        where={  # type: ignore
                             "OR": [
                                 {"expires": None},
                                 {"expires": {"gt": expires}},
@@ -2470,7 +2466,7 @@ class PrismaClient:
                     )  # type: ignore
                 elif query_type == "find_all" and reset_at is not None:
                     response = await self.db.litellm_usertable.find_many(
-                        where={  # type:ignore
+                        where={  # type: ignore
                             "budget_reset_at": {"lt": reset_at},
                         }
                     )
@@ -2482,10 +2478,10 @@ class PrismaClient:
                     if expires is not None:
                         response = await self.db.litellm_usertable.find_many(  # type: ignore
                             order={"spend": "desc"},
-                            where={  # type:ignore
+                            where={  # type: ignore
                                 "OR": [
-                                    {"expires": None},  # type:ignore
-                                    {"expires": {"gt": expires}},  # type:ignore
+                                    {"expires": None},  # type: ignore
+                                    {"expires": {"gt": expires}},  # type: ignore
                                 ],
                             },
                         )
@@ -2532,7 +2528,7 @@ class PrismaClient:
             elif table_name == "budget" and reset_at is not None:
                 if query_type == "find_all":
                     response = await self.db.litellm_budgettable.find_many(
-                        where={  # type:ignore
+                        where={  # type: ignore
                             "OR": [
                                 {
                                     "AND": [
@@ -2560,7 +2556,7 @@ class PrismaClient:
                     )
                 elif query_type == "find_all" and reset_at is not None:
                     response = await self.db.litellm_teamtable.find_many(
-                        where={  # type:ignore
+                        where={  # type: ignore
                             "budget_reset_at": {"lt": reset_at},
                         }
                     )
@@ -2827,14 +2823,12 @@ class PrismaClient:
                 return new_spend_row
             elif table_name == "user_notification":
                 db_data = self.jsonify_object(data=data)
-                new_user_notification_row = (
-                    await self.db.litellm_usernotifications.upsert(  # type: ignore
-                        where={"request_id": data["request_id"]},
-                        data={
-                            "create": {**db_data},  # type: ignore
-                            "update": {},  # don't do anything if it already exists
-                        },
-                    )
+                new_user_notification_row = await self.db.litellm_usernotifications.upsert(  # type: ignore
+                    where={"request_id": data["request_id"]},
+                    data={
+                        "create": {**db_data},  # type: ignore
+                        "update": {},  # don't do anything if it already exists
+                    },
                 )
                 verbose_proxy_logger.info("Data Inserted into Model Request Table")
                 return new_user_notification_row
@@ -3639,6 +3633,30 @@ def _hash_token_if_needed(token: str) -> str:
         return token
 
 
+def _sanitize_null_bytes(value: Any) -> Any:
+    """Recursively strip NULL bytes (\x00) from strings in a payload.
+
+    Postgres rejects NULL bytes in UTF-8 text fields (22P05), and spend log
+    payloads may contain raw request/response strings.
+    """
+
+    if isinstance(value, str):
+        return value.replace("\x00", "")
+
+    if isinstance(value, dict):
+        return {
+            _sanitize_null_bytes(k): _sanitize_null_bytes(v) for k, v in value.items()
+        }
+
+    if isinstance(value, list):
+        return [_sanitize_null_bytes(v) for v in value]
+
+    if isinstance(value, tuple):
+        return tuple(_sanitize_null_bytes(v) for v in value)
+
+    return value
+
+
 class ProxyUpdateSpend:
     @staticmethod
     async def update_end_user_spend(
@@ -3705,6 +3723,10 @@ class ProxyUpdateSpend:
             prisma_client.spend_log_transactions = prisma_client.spend_log_transactions[
                 len(logs_to_process) :
             ]
+
+        # Sanitize once before any JSON serialization / DB inserts (avoid rework on retries)
+        logs_to_process = cast(List[dict], _sanitize_null_bytes(logs_to_process))
+
         start_time = time.time()
         try:
             for i in range(n_retry_times + 1):
