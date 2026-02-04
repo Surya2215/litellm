@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from aiohttp import ClientSession
 
 import litellm
-from litellm._logging import verbose_logger
+import litellm._logging as litellm_logging
 from litellm.llms.base_llm.chat.transformation import BaseLLMException
 from litellm.llms.custom_httpx.http_handler import (
     _DEFAULT_TTL_FOR_HTTPX_CLIENTS,
@@ -226,7 +226,7 @@ class BaseOpenAILLM:
         except (ImportError, AttributeError, KeyError) as e:
             # Fallback to creating a client directly if caching system unavailable
             # This preserves backwards compatibility
-            verbose_logger.debug(
+            litellm_logging.verbose_logger.debug(
                 f"Client caching unavailable ({type(e).__name__}), using direct client creation"
             )
             ssl_config = get_ssl_configuration()
@@ -261,7 +261,7 @@ class BaseOpenAILLM:
             return cached_handler.client
         except (ImportError, AttributeError, KeyError) as e:
             # Fallback to creating a client directly if caching system unavailable
-            verbose_logger.debug(
+            litellm_logging.verbose_logger.debug(
                 f"Client caching unavailable ({type(e).__name__}), using direct client creation"
             )
             ssl_config = get_ssl_configuration()
