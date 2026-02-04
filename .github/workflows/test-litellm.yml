@@ -7,9 +7,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    # NOTE: The suite under tests/test_litellm can exceed 25 minutes on GitHub-hosted runners.
-    # A too-low timeout cancels the job mid-run, producing a persistent failing check signal.
-    timeout-minutes: 90
+    timeout-minutes: 25
 
     steps:
     - uses: actions/checkout@v4
@@ -45,4 +43,4 @@ jobs:
         cd ..
     - name: Run tests
       run: |
-        poetry run pytest tests/test_litellm --tb=short -vv --maxfail=10 -n 4 --durations=50 --import-mode=importlib
+        poetry run pytest tests/test_litellm --tb=short -vv --maxfail=10 -n 4 --durations=50
